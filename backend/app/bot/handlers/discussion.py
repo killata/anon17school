@@ -3,6 +3,8 @@ from aiogram import Router, F
 from aiogram.types import Message
 from aiogram.enums import ParseMode
 
+from app.core.config import settings
+
 logger = logging.getLogger(__name__)
 
 router = Router(name="discussion_handler")
@@ -10,8 +12,16 @@ router = Router(name="discussion_handler")
 # Only process messages from groups and supergroups
 router.message.filter(F.chat.type.in_({"group", "supergroup"}))
 
+channel_raw = settings.CHANNEL_ID or settings.PUBLIC_CHANNEL_ID
+try:
+    target_channel_id = int(channel_raw)
+except (ValueError, TypeError):
+    target_channel_id = None
 
-@router.message(F.is_automatic_forward)
+
+@router.message(
+    F.is_automatic_forward | (F.forward_from_chat.id == target_channel_id)
+)
 async def handle_channel_post_forward(message: Message):
     """
     Автоматический комментарий под каждым постом из канала в привязанной группе обсуждений.
@@ -25,13 +35,26 @@ async def handle_channel_post_forward(message: Message):
         f"(group_msg_id={message.message_id}, channel_msg_id={message.forward_from_message_id})"
     )
     
+    # Deep-link with target discussion message ID
+    deep_link = f"https://t.me/seventeen_confess_bot?start=c_{message.message_id}"
     comment_text = (
-        '💬 <a href="https://t.me/seventeen_confess_bot">Отправить комментарий анонимно</a>'
+        f'💬 <a href="{deep_link}">Отправить комментарий анонимно</a>'
+    )
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="💬 Написать комментарий анонимно",
+                    url=deep_link
+                )
+            ]
+        ]
     )
     
     try:
         await message.reply(
             text=comment_text,
+            reply_markup=keyboard,
             parse_mode=ParseMode.HTML,
             disable_web_page_preview=True
         )

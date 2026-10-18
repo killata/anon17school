@@ -1,8 +1,9 @@
+import html
 import io
 import logging
 from datetime import datetime, timezone
 from aiogram import Router, F
-from aiogram.filters import CommandStart
+from aiogram.filters import CommandStart, Command, CommandObject
 from aiogram.types import Message, CallbackQuery, BufferedInputFile
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
@@ -32,12 +33,44 @@ class DirectPostFSM(StatesGroup):
     waiting_for_category = State()
 
 
+class DirectCommentFSM(StatesGroup):
+    waiting_for_comment = State()
+
+
+@router.message(Command("cancel"))
+async def cmd_cancel(message: Message, state: FSMContext):
+    """Сброс текущего состояния ввода (поста или комментария)."""
+    current_state = await state.get_state()
+    if current_state:
+        await state.clear()
+        await message.answer("❌ Действие отменено.")
+    else:
+        await message.answer("Нет активного действия для отмены.")
+
+
 @router.message(CommandStart())
-async def cmd_start(message: Message, state: FSMContext):
+async def cmd_start(message: Message, command: CommandObject, state: FSMContext):
     """
     Приветствие, краткая выжимка правил и инлайн-кнопка WebAppInfo для запуска Mini App.
+    Также обрабатывает deep-link c_<message_id> для отправки анонимных комментариев под пост.
     """
     await state.clear()
+
+    # 1. Проверяем deep-link для комментария: /start c_123
+    if command.args and command.args.startswith("c_"):
+        try:
+            target_msg_id = int(command.args[2:])
+            await state.set_state(DirectCommentFSM.waiting_for_comment)
+            await state.update_data(target_msg_id=target_msg_id)
+            await message.answer(
+                "💬 <b>Анонимный комментарий к посту</b>\n\n"
+                "Напиши текст комментария (или отправь фото) прямо в этот чат.\n"
+                "Бот опубликует его в комментариях прямо под выбранным постом без твоего имени!\n\n"
+                "<i>Для отмены отправь команду /cancel</i>"
+            )
+            return
+        except (ValueError, TypeError):
+            pass
     
     welcome_text = (
         "🎭 <b>Анонимная платформа мнений и признаний</b>\n\n"
@@ -55,6 +88,97 @@ async def cmd_start(message: Message, state: FSMContext):
         text=welcome_text,
         reply_markup=get_user_start_keyboard(settings.MINI_APP_URL)
     )
+
+
+@router.message(DirectCommentFSM.waiting_for_comment, F.text | F.photo)
+async def on_anonymous_comment_submitted(message: Message, state: FSMContext):
+    """
+    Публикует анонимный комментарий пользователя под конкретным постом в чате обсуждений.
+    """
+    data = await state.get_data()
+    target_msg_id = data.get("target_msg_id")
+    await state.clear()
+
+    if not target_msg_id:
+        await message.answer("❌ Ошибка: не найден целевой пост. Попробуйте нажать ссылку под постом заново.")
+        return
+
+    content = message.text or message.caption or ""
+    if not content and not message.photo:
+        await message.answer("Пожалуйста, отправьте текст или фото комментария.")
+        return
+
+    user_id = message.from_user.id
+    author_hash = get_author_hash(user_id=user_id, secret_salt=settings.ANONYMITY_SALT)
+
+    async with async_session_maker() as session:
+        # 1. Проверка бана
+        ban_stmt = select(BannedHash).where(BannedHash.author_hash == author_hash)
+        ban_res = await session.execute(ban_stmt)
+        ban_record = ban_res.scalar_one_or_none()
+        if ban_record:
+            now = datetime.now(timezone.utc)
+            if ban_record.banned_until is None or ban_record.banned_until > now:
+                await message.answer("🚫 Вы заблокированы и не можете отправлять комментарии.")
+                return
+
+    # 2. Rate limit (1 комментарий в 30 секунд с одного хэша)
+    rate_key = f"ratelimit:comment:{author_hash}"
+    if await redis_client.exists(rate_key):
+        ttl = await redis_client.ttl(rate_key)
+        await message.answer(f"⏳ Подождите {ttl} сек. перед отправкой следующего комментария.")
+        return
+
+    # 3. Очистка фото от EXIF при наличии
+    clean_photo_file = None
+    if message.photo:
+        photo = message.photo[-1]
+        file_io = io.BytesIO()
+        await message.bot.download(photo, destination=file_io)
+        raw_bytes = file_io.getvalue()
+        try:
+            clean_bytes, _ = scrub_image_exif(raw_bytes)
+            clean_photo_file = BufferedInputFile(clean_bytes, filename="comment.jpg")
+        except Exception as exc:
+            logger.warning(f"Ошибка очистки EXIF в комментарии: {exc}")
+            clean_photo_file = photo.file_id
+
+    # 4. Получаем ID чата обсуждений
+    try:
+        discussion_chat_id = int(settings.DISCUSSION_CHAT_ID)
+    except (ValueError, TypeError):
+        discussion_chat_id = -1003894785976
+
+    comment_header = "💬 <b>Анонимный комментарий:</b>"
+    comment_text = f"{comment_header}\n\n{html.escape(content)}" if content else comment_header
+
+    try:
+        if clean_photo_file:
+            await message.bot.send_photo(
+                chat_id=discussion_chat_id,
+                photo=clean_photo_file,
+                caption=comment_text,
+                reply_to_message_id=target_msg_id
+            )
+        else:
+            await message.bot.send_message(
+                chat_id=discussion_chat_id,
+                text=comment_text,
+                reply_to_message_id=target_msg_id
+            )
+
+        # Ставим таймер в Redis на 30 секунд
+        await redis_client.set(rate_key, "1", ex=30)
+
+        await message.answer(
+            "✅ <b>Твой анонимный комментарий успешно опубликован под постом!</b>\n\n"
+            "Можешь открыть комментарии к посту в канале и проверить."
+        )
+    except Exception as exc:
+        logger.error(f"Не удалось отправить комментарий в группу обсуждений: {exc}")
+        await message.answer(
+            "❌ Не удалось отправить комментарий в чат. Возможно, пост был удален или бот временно недоступен."
+        )
 
 
 @router.callback_query(F.data == "start_direct_post")

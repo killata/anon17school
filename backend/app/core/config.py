@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     CHANNEL_ID: str = Field(default="", description="Telegram Channel ID (alias to avoid PUBLIC_ prefix checks)")
     PUBLIC_CHANNEL_ID: str = Field(default="", description="Public Telegram Channel ID")
     ADMIN_MOD_GROUP_ID: str = Field(..., description="Admin Moderation Group ID")
+    DISCUSSION_CHAT_ID: str = Field(default="-1003894785976", description="Discussion supergroup ID for comments")
     ANONYMITY_SALT: str = Field(..., description="Secret salt for irreversible HMAC hashing of user IDs")
 
     @model_validator(mode="after")

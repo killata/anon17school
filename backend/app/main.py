@@ -40,18 +40,20 @@ async def lifespan(app: FastAPI):
         bot_info = await bot.get_me()
         logger.info(f"Bot connected: @{bot_info.username} (ID: {bot_info.id})")
 
+        used_updates = dp.resolve_used_update_types()
         if settings.WEBHOOK_URL:
             webhook_url = f"{settings.WEBHOOK_URL.rstrip('/')}/webhook/bot"
             await bot.set_webhook(
                 url=webhook_url,
                 secret_token=settings.WEBHOOK_SECRET,
-                drop_pending_updates=True
+                allowed_updates=used_updates,
+                drop_pending_updates=False
             )
-            logger.info(f"Telegram Webhook configured: {webhook_url}")
+            logger.info(f"Telegram Webhook configured: {webhook_url} (updates: {used_updates})")
         else:
-            logger.info("WEBHOOK_URL is empty. Starting background long-polling for local/dev use...")
+            logger.info(f"WEBHOOK_URL is empty. Starting background long-polling (updates: {used_updates})...")
             await bot.delete_webhook(drop_pending_updates=False)
-            polling_task = asyncio.create_task(dp.start_polling(bot))
+            polling_task = asyncio.create_task(dp.start_polling(bot, allowed_updates=used_updates))
     except Exception as exc:
         logger.warning(f"Could not initialize Telegram connection on startup: {exc}")
 
