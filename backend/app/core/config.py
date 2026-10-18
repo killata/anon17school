@@ -22,10 +22,6 @@ class Settings(BaseSettings):
         default="https://your-tunnel-url.trycloudflare.com",
         description="Telegram Mini App Frontend HTTPS URL"
     )
-    NEXT_PUBLIC_API_URL: str = Field(
-        default="https://your-api-tunnel.trycloudflare.com/api/v1",
-        description="Backend API URL"
-    )
     WEBHOOK_URL: str = Field(
         default="",
         description="Public HTTPS URL for Telegram Webhook (if empty, runs polling)"
