@@ -30,7 +30,18 @@ export function PostForm() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+  const getApiEndpoint = (path: string): string => {
+    let base = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1").trim().replace(/\/+$/, "");
+    if (!base.endsWith("/api/v1")) {
+      if (base.endsWith("/api")) {
+        base = `${base}/v1`;
+      } else {
+        base = `${base}/api/v1`;
+      }
+    }
+    const cleanPath = path.startsWith("/") ? path : `/${path}`;
+    return `${base}${cleanPath}`;
+  };
 
   useEffect(() => {
     return () => {
@@ -118,7 +129,7 @@ export function PostForm() {
         const formData = new FormData();
         formData.append("file", selectedFile);
 
-        const uploadRes = await fetch(`${apiUrl}/posts/upload-media`, {
+        const uploadRes = await fetch(getApiEndpoint("/posts/upload-media"), {
           method: "POST",
           headers: { Authorization: authHeader },
           body: formData,
@@ -133,7 +144,7 @@ export function PostForm() {
         mediaFileId = uploadData.file_id;
       }
 
-      const submitRes = await fetch(`${apiUrl}/posts/submit`, {
+      const submitRes = await fetch(getApiEndpoint("/posts/submit"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -147,6 +158,9 @@ export function PostForm() {
       });
 
       if (!submitRes.ok) {
+        if (submitRes.status === 404) {
+          throw new Error("API эндпоинт не найден (404). Проверьте URL в NEXT_PUBLIC_API_URL на Vercel.");
+        }
         const errData = await submitRes.json().catch(() => ({}));
         throw new Error(errData.detail || `Ошибка сервера: ${submitRes.status}`);
       }

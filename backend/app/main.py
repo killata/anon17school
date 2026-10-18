@@ -87,8 +87,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Монтирование REST API
+from app.api.v1.posts import router as posts_router
+
+# Монтирование REST API с поддержкой любых префиксов (/api/v1, /api, /v1, /)
 app.include_router(api_v1_router, prefix="/api")
+app.include_router(api_v1_router, prefix="/v1")
+app.include_router(posts_router, prefix="/posts")
+app.include_router(posts_router, prefix="/api/posts")
+
+
+@app.get("/", tags=["health"])
+async def root():
+    """Корневой эндпоинт для проверки статуса сервиса."""
+    return {
+        "status": "ok",
+        "service": "anon-school-backend",
+        "health": "/health",
+        "docs": "/docs",
+        "message": "Backend API is live. Mini App frontend should be opened via Vercel URL."
+    }
 
 
 @app.post("/webhook/bot", include_in_schema=False)
