@@ -1,11 +1,13 @@
 import html
 import uuid
 import logging
+import asyncio
 from aiogram import Router, F
-from aiogram.types import CallbackQuery
+from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from sqlalchemy import select
 
 from app.core.config import settings
+from app.core.redis import redis_client
 from app.db.session import async_session_maker
 from app.db.models.post import Post, PostStatus
 from app.db.models.ban import BannedHash
@@ -14,6 +16,57 @@ from app.bot.keyboards.admin import ModActionCallback
 logger = logging.getLogger(__name__)
 
 router = Router(name="admin_moderation")
+
+
+async def ensure_discussion_comment(bot, channel_message_id: int):
+    """
+    Гарантированно оставляет комментарий со ссылкой на анонимную отправку
+    под опубликованным постом в привязанном чате обсуждений.
+    """
+    key = f"comment_posted:{channel_message_id}"
+    try:
+        disc_id = int(settings.DISCUSSION_CHAT_ID)
+    except (ValueError, TypeError):
+        disc_id = -1003894785976
+
+    for attempt in range(6):
+        await asyncio.sleep(1.2)
+        if await redis_client.get(key):
+            return
+
+        try:
+            chat = await bot.get_chat(disc_id)
+            pinned = chat.pinned_message
+            if pinned:
+                origin_id = None
+                if hasattr(pinned, "forward_from_message_id") and pinned.forward_from_message_id:
+                    origin_id = pinned.forward_from_message_id
+                elif hasattr(pinned, "forward_origin") and getattr(pinned.forward_origin, "message_id", None):
+                    origin_id = pinned.forward_origin.message_id
+
+                if origin_id == channel_message_id:
+                    if not await redis_client.set(key, "1", nx=True, ex=3600):
+                        return
+
+                    target_discussion_msg_id = pinned.message_id
+                    deep_link = f"https://t.me/seventeen_confess_bot?start=c_{target_discussion_msg_id}"
+                    comment_text = f'💬 <a href="{deep_link}">Отправить комментарий анонимно</a>'
+                    keyboard = InlineKeyboardMarkup(
+                        inline_keyboard=[[
+                            InlineKeyboardButton(text="💬 Написать комментарий анонимно", url=deep_link)
+                        ]]
+                    )
+                    await bot.send_message(
+                        chat_id=disc_id,
+                        text=comment_text,
+                        reply_to_message_id=target_discussion_msg_id,
+                        reply_markup=keyboard,
+                        parse_mode="HTML"
+                    )
+                    logger.info(f"Directly posted comment under discussion msg {target_discussion_msg_id}")
+                    return
+        except Exception as e:
+            logger.warning(f"Attempt {attempt+1} posting comment to discussion: {e}")
 
 
 @router.callback_query(ModActionCallback.filter())
@@ -68,6 +121,14 @@ async def handle_moderation_callback(
                 post.status = PostStatus.APPROVED
                 post.channel_message_id = published.message_id
                 await session.commit()
+
+                # Гарантированная отправка комментария под пост в чат обсуждений
+                asyncio.create_task(
+                    ensure_discussion_comment(
+                        bot=callback.bot,
+                        channel_message_id=published.message_id
+                    )
+                )
 
                 status_label = f"\n\n<b>✅ ОПУБЛИКОВАНО в канале</b> (Msg ID: {published.message_id})"
                 await callback.answer("✅ Пост успешно опубликован!")

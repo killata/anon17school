@@ -1,9 +1,10 @@
 import logging
 from aiogram import Router, F
-from aiogram.types import Message
+from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.enums import ParseMode
 
 from app.core.config import settings
+from app.core.redis import redis_client
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +35,17 @@ async def handle_channel_post_forward(message: Message):
         f"Detected auto-forwarded channel post in discussion group {message.chat.id} "
         f"(group_msg_id={message.message_id}, channel_msg_id={message.forward_from_message_id})"
     )
-    
+
+    channel_msg_id = message.forward_from_message_id
+    if hasattr(message, "forward_origin") and getattr(message.forward_origin, "message_id", None):
+        channel_msg_id = message.forward_origin.message_id
+
+    if channel_msg_id:
+        key = f"comment_posted:{channel_msg_id}"
+        if not await redis_client.set(key, "1", nx=True, ex=3600):
+            logger.info(f"Comment already posted for channel post {channel_msg_id}")
+            return
+
     # Deep-link with target discussion message ID
     deep_link = f"https://t.me/seventeen_confess_bot?start=c_{message.message_id}"
     comment_text = (
