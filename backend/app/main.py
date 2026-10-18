@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Header, HTTPException, status
@@ -23,8 +24,9 @@ async def lifespan(app: FastAPI):
     """
     Unified async lifespan:
     1. Registers aiogram routers in the Dispatcher.
-    2. Shares the same asyncio event loop and connection pools across FastAPI and aiogram.
-    3. Handles graceful cleanup of Bot session, Redis pool, and PostgreSQL engine.
+    2. Runs long-polling or registers webhook depending on WEBHOOK_URL.
+    3. Shares the same asyncio event loop and connection pools across FastAPI and aiogram.
+    4. Handles graceful cleanup of Bot session, Redis pool, and PostgreSQL engine.
     """
     logger.info("Initializing Anon School Bot & API...")
     
@@ -32,16 +34,37 @@ async def lifespan(app: FastAPI):
     dp.include_router(admin_router)
     dp.include_router(user_router)
     
-    # Очистка старых вебхуков или установка нового при наличии домена
+    polling_task = None
     try:
         bot_info = await bot.get_me()
         logger.info(f"Bot connected: @{bot_info.username} (ID: {bot_info.id})")
+
+        if settings.WEBHOOK_URL:
+            webhook_url = f"{settings.WEBHOOK_URL.rstrip('/')}/webhook/bot"
+            await bot.set_webhook(
+                url=webhook_url,
+                secret_token=settings.WEBHOOK_SECRET,
+                drop_pending_updates=True
+            )
+            logger.info(f"Telegram Webhook configured: {webhook_url}")
+        else:
+            logger.info("WEBHOOK_URL is empty. Starting background long-polling for local/dev use...")
+            await bot.delete_webhook(drop_pending_updates=False)
+            polling_task = asyncio.create_task(dp.start_polling(bot))
     except Exception as exc:
-        logger.warning(f"Could not reach Telegram Bot API on startup: {exc}")
+        logger.warning(f"Could not initialize Telegram connection on startup: {exc}")
 
     yield
 
     logger.info("Shutting down Anon School Bot & API...")
+    if polling_task:
+        logger.info("Stopping polling task...")
+        polling_task.cancel()
+        try:
+            await polling_task
+        except asyncio.CancelledError:
+            pass
+
     await bot.session.close()
     await redis_client.aclose()
     await engine.dispose()

@@ -26,6 +26,10 @@ class Settings(BaseSettings):
         default="https://your-api-tunnel.trycloudflare.com/api/v1",
         description="Backend API URL"
     )
+    WEBHOOK_URL: str = Field(
+        default="",
+        description="Public HTTPS URL for Telegram Webhook (if empty, runs polling)"
+    )
 
     model_config = SettingsConfigDict(
         env_file=("../.env", ".env"),
