@@ -25,13 +25,13 @@ router = APIRouter(prefix="/posts", tags=["posts"])
 
 class PostCreate(BaseModel):
     content: str = Field(..., min_length=3, max_length=4000, description="Текст поста")
-    category: PostCategory = Field(..., description="Категория поста")
+    category: Optional[PostCategory] = Field(None, description="Категория поста (опционально)")
     media_file_id: Optional[str] = Field(None, description="Telegram file_id очищенного медиа")
 
 
 class PostResponse(BaseModel):
     id: uuid.UUID
-    category: PostCategory
+    category: Optional[PostCategory] = None
     status: PostStatus
     author_short_hash: str
     created_at: datetime

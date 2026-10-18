@@ -32,10 +32,18 @@ def get_categories_keyboard() -> InlineKeyboardMarkup:
     buttons = [
         [
             InlineKeyboardButton(
+                text="💬 Без тега",
+                callback_data=UserCategoryCallback(category="NONE").pack()
+            )
+        ]
+    ]
+    buttons.extend([
+        [
+            InlineKeyboardButton(
                 text=f"📌 {cat.value}",
                 callback_data=UserCategoryCallback(category=cat.name).pack()
             )
         ]
         for cat in PostCategory
-    ]
+    ])
     return InlineKeyboardMarkup(inline_keyboard=buttons)

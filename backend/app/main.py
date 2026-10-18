@@ -10,7 +10,7 @@ from app.core.bot import bot, dp
 from app.core.redis import redis_client
 from app.db.session import engine
 from app.api.v1 import api_v1_router
-from app.bot.handlers import user_router, admin_router
+from app.bot.handlers import user_router, admin_router, discussion_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -33,6 +33,7 @@ async def lifespan(app: FastAPI):
     # Регистрация роутеров бота
     dp.include_router(admin_router)
     dp.include_router(user_router)
+    dp.include_router(discussion_router)
     
     polling_task = None
     try:

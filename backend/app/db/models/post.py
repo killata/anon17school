@@ -56,14 +56,14 @@ class Post(Base):
         nullable=False
     )
     
-    category: Mapped[PostCategory] = mapped_column(
+    category: Mapped[PostCategory | None] = mapped_column(
         Enum(
             PostCategory,
             name="post_category",
             native_enum=True,
             values_callable=lambda x: [e.value for e in x]
         ),
-        nullable=False
+        nullable=True
     )
     
     # Optional Telegram file_id for attached photos/media

@@ -46,8 +46,9 @@ async def handle_moderation_callback(
         ) else settings.PUBLIC_CHANNEL_ID
 
         if action == "approve":
+            tag_line = f"<b>#{post.category.value}</b>\n\n" if post.category else ""
             channel_text = (
-                f"<b>#{post.category.value}</b>\n\n"
+                f"{tag_line}"
                 f"{html.escape(post.content)}\n\n"
                 f"<i>—</i>\n"
                 f"<i>🎭 Написать анонимно: @seventeen_confess_bot</i>"

@@ -5,10 +5,11 @@ import { cn } from "@/lib/utils";
 export interface CategoryOption {
   id: string;
   tag: string;
-  backendValue: "Мнение" | "Учителя" | "Ищу тебя" | "Мем" | "Сплетня";
+  backendValue: "Мнение" | "Учителя" | "Ищу тебя" | "Мем" | "Сплетня" | null;
 }
 
 export const CATEGORIES: CategoryOption[] = [
+  { id: "none", tag: "Без тега", backendValue: null },
   { id: "opinion", tag: "#мнение", backendValue: "Мнение" },
   { id: "teachers", tag: "#учителя", backendValue: "Учителя" },
   { id: "crush", tag: "#краш", backendValue: "Ищу тебя" },
@@ -17,7 +18,7 @@ export const CATEGORIES: CategoryOption[] = [
 ];
 
 interface CategoryChipsProps {
-  selectedCategory: string;
+  selectedCategory: string | null;
   onSelect: (category: CategoryOption) => void;
 }
 

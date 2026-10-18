@@ -73,7 +73,11 @@ export function PostForm() {
 
   const handleCategorySelect = (cat: CategoryOption) => {
     triggerHaptic("light");
-    setCategory(cat);
+    if (category.id === cat.id && cat.id !== "none") {
+      setCategory(CATEGORIES[0]);
+    } else {
+      setCategory(cat);
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {

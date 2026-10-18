@@ -27,9 +27,10 @@ async def send_post_to_moderation(post: Post, author_short_hash: str) -> int:
     ) else settings.ADMIN_MOD_GROUP_ID
     
     escaped_content = html.escape(post.content)
+    category_label = f"#{post.category.value}" if post.category else "Без тега"
     caption = (
         f"<b>📨 Новая предложка на модерацию</b>\n\n"
-        f"<b>Категория:</b> #{post.category.value}\n"
+        f"<b>Категория:</b> {category_label}\n"
         f"<b>Автор:</b> <code>#{author_short_hash}</code>\n\n"
         f"{escaped_content}\n\n"
         f"<i>Выберите действие ниже:</i>"

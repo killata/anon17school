@@ -117,8 +117,7 @@ async def on_category_chosen(callback: CallbackQuery, callback_data: UserCategor
     content = data.get("content", "")
     media_file_id = data.get("media_file_id")
     await state.clear()
-
-    category_enum = PostCategory[callback_data.category]
+    category_enum = None if callback_data.category == "NONE" else PostCategory[callback_data.category]
     user_id = callback.from_user.id
     author_hash = get_author_hash(user_id=user_id, secret_salt=settings.ANONYMITY_SALT)
 
