@@ -2,7 +2,7 @@ import { PostForm } from "@/components/PostForm";
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-gradient-to-b from-zinc-950 via-zinc-900 to-black text-white px-4 py-3 max-w-md mx-auto selection:bg-indigo-500/30">
+    <main className="min-h-screen bg-black text-zinc-100 px-3.5 py-2.5 max-w-md mx-auto selection:bg-zinc-800">
       <PostForm />
     </main>
   );

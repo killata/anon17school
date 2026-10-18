@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --background: var(--tg-theme-bg-color, #09090b);
+  --background: var(--tg-theme-bg-color, #000000);
   --foreground: var(--tg-theme-text-color, #f4f4f5);
 }
 
@@ -10,4 +10,13 @@ body {
   color: var(--foreground);
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior-y: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
