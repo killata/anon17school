@@ -183,18 +183,13 @@ export function PostForm() {
   return (
     <div className="space-y-3 pb-16">
       {/* Header */}
-      <div className="flex items-center justify-between pt-1">
-        <div>
-          <h1 className="text-base font-semibold text-zinc-100 tracking-tight">
-            Анонимка 17
-          </h1>
-          <p className="text-[11px] text-zinc-500">
-            Предложка гимназии
-          </p>
-        </div>
-        <span className="text-[10px] text-zinc-500 font-mono">
-          100% anon
-        </span>
+      <div className="pt-1">
+        <h1 className="text-base font-semibold text-zinc-100 tracking-tight">
+          Анонимка 17
+        </h1>
+        <p className="text-[11px] text-zinc-500">
+          Предложка гимназии
+        </p>
       </div>
 
       {/* Legal Rules */}

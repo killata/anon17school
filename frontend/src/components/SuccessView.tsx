@@ -24,11 +24,7 @@ export function SuccessView({ onReset, onClose, categoryTag }: SuccessViewProps)
         </p>
       </div>
 
-      <p className="text-[10px] text-zinc-500 font-mono">
-        100% анонимно • id не сохранен
-      </p>
-
-      <div className="w-full max-w-xs space-y-2 pt-4">
+      <div className="w-full max-w-xs space-y-2 pt-2">
         <button
           type="button"
           onClick={onReset}
