@@ -154,7 +154,10 @@ export function PostForm() {
       triggerNotificationHaptic("success");
       setIsSuccess(true);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Произошла ошибка";
+      let message = err instanceof Error ? err.message : "Произошла ошибка";
+      if (message === "Load failed" || message === "Failed to fetch" || message.includes("NetworkError")) {
+        message = "Не удалось связаться с сервером. Проверьте адрес API и статус бэкенда.";
+      }
       setErrorMsg(message);
       triggerNotificationHaptic("error");
     } finally {
