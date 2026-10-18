@@ -2,6 +2,10 @@
 
 ## 📖 Project Overview
 
+> [!NOTE]
+> **Язык платформы (Project Language):**
+> Пользовательский интерфейс Telegram-бота, Mini App (TMA), категории постов, уведомления и модерация функционируют на **русском языке**.
+
 This is an unnamed hybrid Telegram Bot and Telegram Mini App (TMA) platform designed for broadcasting anonymous messages to a dedicated Telegram channel. It provides an uncensored, free-speech environment where students can openly share their thoughts, confessions, memes, and unfiltered opinions about school life, classmates, teachers, and administration—restricted **only** by the hard boundaries of the national law of the Republic of Kazakhstan, rather than subjective moral policing.
 
 ### ✨ Key Features
