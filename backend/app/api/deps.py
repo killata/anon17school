@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Optional
 from fastapi import Header, HTTPException, status, Depends
 from aiogram.utils.web_app import safe_parse_webapp_init_data
@@ -55,6 +56,16 @@ async def get_current_author_hash(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Данные пользователя Telegram отсутствуют в WebApp initData"
         )
+
+    # OWASP A07: Anti-Replay Check (сессия не должна быть старше 24 часов)
+    if parsed_data.auth_date:
+        now_ts = datetime.now(timezone.utc).timestamp()
+        auth_ts = parsed_data.auth_date.timestamp() if hasattr(parsed_data.auth_date, "timestamp") else float(parsed_data.auth_date)
+        if (now_ts - auth_ts) > 86400:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Сессия Telegram WebApp устарела (старше 24 часов). Пожалуйста, перезапустите приложение."
+            )
         
     # Instant cryptographic transformation to irreversible hash
     author_hash = get_author_hash(

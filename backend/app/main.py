@@ -81,12 +81,12 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Настройка CORS для Telegram WebApp
+# Настройка CORS для Telegram WebApp (OWASP A05: Security Misconfiguration)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 

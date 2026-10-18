@@ -84,6 +84,21 @@ async def handle_moderation_callback(
     post_uuid = uuid.UUID(callback_data.post_id)
     action = callback_data.action
 
+    # OWASP A01: Broken Access Control - проверяем права модератора
+    admin_group_raw = settings.ADMIN_MOD_GROUP_ID
+    try:
+        admin_id = int(admin_group_raw)
+    except (ValueError, TypeError):
+        admin_id = None
+
+    user_id = callback.from_user.id if callback.from_user else None
+    chat_id = callback.message.chat.id if callback.message else None
+
+    if admin_id and chat_id != admin_id and user_id != admin_id:
+        await callback.answer("⛔ Доступ запрещен. Вы не являетесь модератором.", show_alert=True)
+        logger.warning(f"Unauthorized moderation attempt from user {user_id} in chat {chat_id}")
+        return
+
     async with async_session_maker() as session:
         stmt = select(Post).where(Post.id == post_uuid)
         result = await session.execute(stmt)

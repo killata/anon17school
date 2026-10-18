@@ -150,8 +150,21 @@ async def test_admin_moderation_callback_actions():
         await session.refresh(post)
         post_id = post.id
         
-        # 1. Mock Callback for REJECT
+        # 1. Test Unauthorized Attempt (OWASP A01 verification)
+        unauth_callback = AsyncMock()
+        unauth_callback.from_user.id = 999999999
+        unauth_callback.message.chat.id = 999999999
+        unauth_cb_data = ModActionCallback(action="reject", post_id=str(post_id))
+        await handle_moderation_callback(unauth_callback, unauth_cb_data)
+        await session.refresh(post)
+        assert post.status == PostStatus.PENDING  # Must remain PENDING
+        unauth_callback.answer.assert_called_with("⛔ Доступ запрещен. Вы не являетесь модератором.", show_alert=True)
+
+        # 2. Mock Callback for REJECT by authorized moderator
         mock_callback = AsyncMock()
+        admin_id = int(settings.ADMIN_MOD_GROUP_ID)
+        mock_callback.from_user.id = admin_id
+        mock_callback.message.chat.id = admin_id
         mock_callback.message.caption = None
         mock_callback.message.text = "Карточка поста"
         mock_callback.message.photo = None
