@@ -4,7 +4,7 @@ from pydantic import Field
 
 class Settings(BaseSettings):
     BOT_TOKEN: str = Field(..., description="Telegram Bot Token")
-    WEBHOOK_SECRET: str = Field(..., description="Webhook secret token")
+    WEBHOOK_SECRET: str = Field(default="secret-webhook-token", description="Webhook secret token")
     PUBLIC_CHANNEL_ID: str = Field(..., description="Public Telegram Channel ID")
     ADMIN_MOD_GROUP_ID: str = Field(..., description="Admin Moderation Group ID")
     ANONYMITY_SALT: str = Field(..., description="Secret salt for irreversible HMAC hashing of user IDs")
